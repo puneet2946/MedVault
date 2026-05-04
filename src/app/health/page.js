@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -8,6 +8,43 @@ export default function Health() {
   const { t } = useLanguage();
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+
+  const fileInputRef = useRef(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const [error, setError] = useState(null);
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsAnalyzing(true);
+    setError(null);
+    setAnalysisResult(null);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/analyze-report', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to analyze the report');
+      }
+
+      setAnalysisResult(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsAnalyzing(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -63,9 +100,24 @@ export default function Health() {
                 </h3>
                 <p className="text-on-surface-variant text-sm max-w-md">Access and manage your clinical documents, lab results, and imaging scans.</p>
               </div>
-              <button className="bg-velvet text-on-primary px-8 py-4 rounded-xl font-bold text-base hover:opacity-90 transition-opacity active:scale-95 duration-200 shadow-lg shadow-primary/20 flex items-center gap-3">
-                <span className="material-symbols-outlined">upload_file</span>
-                Upload Report
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept="image/*,application/pdf" 
+                onChange={handleFileUpload} 
+              />
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isAnalyzing}
+                className="bg-velvet text-on-primary px-8 py-4 rounded-xl font-bold text-base hover:opacity-90 transition-opacity active:scale-95 duration-200 shadow-lg shadow-primary/20 flex items-center gap-3 disabled:opacity-50 disabled:active:scale-100"
+              >
+                {isAnalyzing ? (
+                  <span className="material-symbols-outlined animate-spin">refresh</span>
+                ) : (
+                  <span className="material-symbols-outlined">upload_file</span>
+                )}
+                {isAnalyzing ? 'Analyzing...' : 'Upload Report'}
               </button>
             </div>
 
@@ -109,6 +161,85 @@ export default function Health() {
             </div>
           </div>
         </section>
+
+        {/* AI Analysis Result */}
+        {(isAnalyzing || analysisResult || error) && (
+          <section className="mb-12">
+            <div className="bg-surface-container-lowest rounded-xl p-8 ambient-shadow relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-primary-container/10 rounded-bl-full -mr-16 -mt-16 blur-2xl"></div>
+              
+              <h3 className="text-xl font-bold text-on-surface mb-6 flex items-center gap-2 relative z-10">
+                <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
+                AI Report Analysis
+              </h3>
+
+              {isAnalyzing && (
+                <div className="animate-pulse flex flex-col gap-4 relative z-10">
+                  <div className="h-4 bg-surface-container-high rounded w-3/4"></div>
+                  <div className="h-4 bg-surface-container-high rounded w-full"></div>
+                  <div className="h-4 bg-surface-container-high rounded w-5/6"></div>
+                  <div className="mt-4 h-8 bg-surface-container-high rounded w-1/3"></div>
+                </div>
+              )}
+
+              {error && (
+                <div className="bg-error-container text-on-error-container p-4 rounded-lg flex items-start gap-3 relative z-10">
+                   <span className="material-symbols-outlined shrink-0 mt-0.5">error</span>
+                   <p className="text-sm font-medium">{error}</p>
+                </div>
+              )}
+
+              {analysisResult && (
+                <div className="space-y-6 relative z-10">
+                  <div className="bg-primary/5 p-5 rounded-xl border border-primary/10">
+                    <h4 className="text-sm font-bold uppercase tracking-wider text-primary mb-2">Summary</h4>
+                    <p className="text-on-surface-variant text-[15px] leading-relaxed">{analysisResult.summary}</p>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                      <h4 className="text-sm font-bold uppercase tracking-wider text-on-surface-variant mb-3 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-secondary text-lg">check_circle</span>
+                        Key Findings
+                      </h4>
+                      <ul className="space-y-3">
+                        {analysisResult.keyFindings?.map((finding, idx) => (
+                          <li key={idx} className="flex gap-3 text-sm text-on-surface-variant bg-surface-container-low p-3 rounded-lg">
+                            <span className="w-1.5 h-1.5 rounded-full bg-secondary shrink-0 mt-1.5"></span>
+                            <span>{finding}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-bold uppercase tracking-wider text-on-surface-variant mb-3 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-primary text-lg">menu_book</span>
+                        Jargon Buster
+                      </h4>
+                      <div className="space-y-3">
+                        {analysisResult.jargonBuster?.map((item, idx) => (
+                          <div key={idx} className="bg-surface-container-low p-3 rounded-lg text-sm">
+                            <span className="font-bold text-on-surface block mb-1">{item.term}</span>
+                            <span className="text-on-surface-variant block">{item.explanation}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-secondary-container/20 p-5 rounded-xl border border-secondary-container/30 flex gap-4 items-start mt-4">
+                    <span className="material-symbols-outlined text-secondary shrink-0 mt-0.5">medical_information</span>
+                    <div>
+                      <h4 className="text-sm font-bold text-on-surface mb-1">Recommended Next Steps</h4>
+                      <p className="text-on-surface-variant text-sm">{analysisResult.nextSteps}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* Live Sync Dashboard */}
         <section>
