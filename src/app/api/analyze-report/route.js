@@ -1,11 +1,21 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Initialize the Gemini API client inside the function to ensure process.env is read on every request
-// (useful during development when env vars change)
+// Models to try in order — if the primary is overloaded (503) or rate limited (429), fall back to the next
+const MODELS = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash', 'gemini-2.5-pro'];
 
 export async function POST(req) {
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: 'Server configuration error: GEMINI_API_KEY is not set.' },
+      { status: 500 }
+    );
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+
   try {
     const formData = await req.formData();
     const file = formData.get('file');
@@ -44,37 +54,67 @@ Structure your response strictly in the following JSON format:
 
 Return ONLY valid JSON. Do not include markdown formatting like \`\`\`json.`;
 
-    // Use gemini-1.5-pro since it is multimodal and highly capable for document/image reasoning
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
-    const result = await model.generateContent([
+    const contentPayload = [
       prompt,
       {
         inlineData: {
           data: base64Data,
-          mimeType
-        }
-      }
-    ]);
+          mimeType,
+        },
+      },
+    ];
 
-    const responseText = result.response.text();
-    
-    // Clean up response if it contains markdown formatting
-    let jsonString = responseText.trim();
-    if (jsonString.startsWith('\`\`\`json')) {
-      jsonString = jsonString.slice(7, -3).trim();
-    } else if (jsonString.startsWith('\`\`\`')) {
-       jsonString = jsonString.slice(3, -3).trim();
+    // Try each model in order until one succeeds
+    let lastError = null;
+    for (const modelName of MODELS) {
+      try {
+        console.log(`Trying model: ${modelName}`);
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent(contentPayload);
+        const responseText = result.response.text();
+
+        // Clean up response if it contains markdown formatting
+        let jsonString = responseText.trim();
+        if (jsonString.startsWith('\`\`\`json')) {
+          jsonString = jsonString.slice(7, -3).trim();
+        } else if (jsonString.startsWith('\`\`\`')) {
+          jsonString = jsonString.slice(3, -3).trim();
+        }
+
+        const data = JSON.parse(jsonString);
+        console.log(`Success with model: ${modelName}`);
+        return NextResponse.json(data);
+      } catch (err) {
+        lastError = err;
+        const status = err?.status || err?.response?.status;
+        console.warn(`Model ${modelName} failed (status: ${status}): ${err.message}`);
+
+        // Only fall back on transient / overload errors (503, 429, 500)
+        if (status === 503 || status === 429 || status === 500) {
+          continue; // try next model
+        }
+
+        // For non-transient errors (e.g. 400 bad request, 401 auth), stop immediately
+        throw err;
+      }
     }
 
-    const data = JSON.parse(jsonString);
-
-    return NextResponse.json(data);
+    // All models failed with transient errors
+    throw lastError;
   } catch (error) {
     console.error('Error analyzing report:', error);
-    return NextResponse.json(
-      { error: 'Failed to analyze the report. Please try again later.' },
-      { status: 500 }
-    );
+
+    const status = error?.status || error?.response?.status;
+    let userMessage = 'Failed to analyze the report. Please try again later.';
+
+    if (status === 401 || status === 403) {
+      userMessage = 'API key is invalid or expired. Please check your configuration.';
+    } else if (status === 429) {
+      userMessage = 'Too many requests. Please wait a moment and try again.';
+    } else if (status === 503) {
+      userMessage = 'All AI models are currently experiencing high demand. Please try again in a few minutes.';
+    }
+
+    return NextResponse.json({ error: userMessage }, { status: 500 });
   }
 }
