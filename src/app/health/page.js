@@ -18,6 +18,13 @@ export default function Health() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Check file size (limit to 20MB)
+    if (file.size > 20 * 1024 * 1024) {
+       setError("The file is too large. Please upload a report smaller than 20MB.");
+       if (fileInputRef.current) fileInputRef.current.value = '';
+       return;
+    }
+
     setIsAnalyzing(true);
     setError(null);
     setAnalysisResult(null);
@@ -30,6 +37,12 @@ export default function Health() {
         method: 'POST',
         body: formData,
       });
+
+      // Handle non-JSON responses (like 413 Payload Too Large)
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+         throw new Error(`Server returned an unexpected error (${response.status}). The file might be too large.`);
+      }
 
       const data = await response.json();
 
