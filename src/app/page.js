@@ -1,7 +1,7 @@
 "use client";
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 
 export default function Home() {
@@ -12,6 +12,68 @@ export default function Home() {
   // Medication Tracker State
   const [med1Taken, setMed1Taken] = useState(true);
   const [med2Taken, setMed2Taken] = useState(false);
+
+  // SOS State
+  const [sosActive, setSosActive] = useState(false);
+  const [sosCountdown, setSosCountdown] = useState(5);
+  const [sosModalOpen, setSosModalOpen] = useState(false);
+  const audioCtxRef = useRef(null);
+  const sosIntervalRef = useRef(null);
+  const countdownIntervalRef = useRef(null);
+
+  const stopSOS = useCallback(() => {
+    setSosActive(false);
+    setSosModalOpen(false);
+    setSosCountdown(5);
+    if (audioCtxRef.current) {
+      audioCtxRef.current.close();
+      audioCtxRef.current = null;
+    }
+    if (sosIntervalRef.current) clearInterval(sosIntervalRef.current);
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+  }, []);
+
+  const playSirenTick = useCallback((ctx) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    const now = ctx.currentTime;
+    osc.frequency.setValueAtTime(880, now);
+    osc.frequency.linearRampToValueAtTime(440, now + 0.4);
+    osc.frequency.linearRampToValueAtTime(880, now + 0.8);
+    gain.gain.setValueAtTime(0.6, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.85);
+    osc.start(now);
+    osc.stop(now + 0.9);
+  }, []);
+
+  const triggerSOS = useCallback(() => {
+    if (sosActive) { stopSOS(); return; }
+    setSosActive(true);
+    setSosModalOpen(true);
+    setSosCountdown(5);
+
+    // Start audio
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    audioCtxRef.current = ctx;
+    playSirenTick(ctx);
+    sosIntervalRef.current = setInterval(() => playSirenTick(ctx), 1000);
+
+    // Countdown then call
+    let count = 5;
+    countdownIntervalRef.current = setInterval(() => {
+      count -= 1;
+      setSosCountdown(count);
+      if (count <= 0) {
+        clearInterval(countdownIntervalRef.current);
+        window.location.href = 'tel:112';
+        stopSOS();
+      }
+    }, 1000);
+  }, [sosActive, stopSOS, playSirenTick]);
+
+  useEffect(() => () => stopSOS(), [stopSOS]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -33,14 +95,71 @@ export default function Home() {
   return (
     <>
       {/* TopAppBar */}
+      {/* SOS Modal Overlay */}
+      {sosModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)' }}>
+          <div
+            className="relative rounded-3xl p-8 flex flex-col items-center gap-5 shadow-2xl"
+            style={{
+              background: 'linear-gradient(135deg, #ff1744 0%, #b71c1c 100%)',
+              minWidth: 300,
+              animation: 'sosPulse 0.8s ease-in-out infinite alternate',
+            }}
+          >
+            <style>{`
+              @keyframes sosPulse { from { box-shadow: 0 0 0 0 rgba(255,23,68,0.6); } to { box-shadow: 0 0 60px 20px rgba(255,23,68,0.15); } }
+              @keyframes sosRing { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+            `}</style>
+            <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center" style={{ animation: 'sosRing 0.8s ease-in-out infinite' }}>
+              <span className="material-symbols-outlined text-white text-5xl" style={{ fontVariationSettings: "'FILL' 1" }}>emergency</span>
+            </div>
+            <h2 className="text-white text-3xl font-extrabold tracking-tight">SOS</h2>
+            <p className="text-white/90 text-center text-base font-medium">Calling emergency services in</p>
+            <div className="text-white text-7xl font-black tabular-nums" style={{ textShadow: '0 0 30px rgba(255,255,255,0.5)' }}>{sosCountdown}</div>
+            <p className="text-white/70 text-sm text-center">Dialling <strong>112</strong> (Emergency)</p>
+            <button
+              onClick={stopSOS}
+              className="mt-2 px-8 py-3 rounded-2xl bg-white text-red-700 font-extrabold text-base hover:bg-red-50 transition-colors active:scale-95"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       <header className={`bg-[#fafaf1]/80 backdrop-blur-md text-[#01261f] font-['Plus_Jakarta_Sans'] font-bold tracking-tight text-xl fixed top-0 z-50 flex justify-between items-center px-6 py-4 w-full transition-transform duration-300 ${isHeaderVisible ? 'translate-y-0' : '-translate-y-full'}`}>
         <button aria-label="Menu" className="w-10 h-10 flex items-center justify-center rounded-full bg-surface-container-low hover:bg-surface-variant transition-colors">
           <span className="material-symbols-outlined text-primary">menu</span>
         </button>
         <span className="text-[#01261f] font-bold italic tracking-tighter -ml-8">{t('h_title')}</span>
-        <Link href="/profile" className="w-10 h-10 rounded-full overflow-hidden bg-surface-container-high border-2 border-surface flex items-center justify-center hover:opacity-80 transition-opacity">
-          <span className="material-symbols-outlined text-on-surface-variant text-sm">person</span>
-        </Link>
+        <div className="flex items-center gap-2">
+          {/* SOS Button */}
+          <button
+            id="sos-btn-home"
+            aria-label="SOS Emergency"
+            onClick={triggerSOS}
+            className="relative flex items-center justify-center rounded-full font-extrabold text-white transition-all active:scale-95"
+            style={{
+              width: 44,
+              height: 44,
+              background: sosActive
+                ? 'linear-gradient(135deg,#ff1744,#b71c1c)'
+                : 'linear-gradient(135deg,#ff1744,#d50000)',
+              boxShadow: sosActive
+                ? '0 0 0 4px rgba(255,23,68,0.35), 0 4px 20px rgba(255,23,68,0.5)'
+                : '0 4px 14px rgba(213,0,0,0.45)',
+              animation: sosActive ? 'sosPulse 0.8s ease-in-out infinite alternate' : 'none',
+              fontSize: 13,
+              letterSpacing: '0.04em',
+            }}
+          >
+            <style>{`@keyframes sosPulse { from { box-shadow: 0 0 0 4px rgba(255,23,68,0.35),0 4px 20px rgba(255,23,68,0.5); } to { box-shadow: 0 0 0 8px rgba(255,23,68,0.15),0 4px 30px rgba(255,23,68,0.6); } }`}</style>
+            SOS
+          </button>
+          <Link href="/profile" className="w-10 h-10 rounded-full overflow-hidden bg-surface-container-high border-2 border-surface flex items-center justify-center hover:opacity-80 transition-opacity">
+            <span className="material-symbols-outlined text-on-surface-variant text-sm">person</span>
+          </Link>
+        </div>
       </header>
 
       <main className="px-6 pt-24 pb-24 max-w-4xl mx-auto space-y-12">
