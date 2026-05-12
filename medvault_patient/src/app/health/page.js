@@ -78,41 +78,73 @@ export default function Health() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Check file size (limit to 20MB)
     if (file.size > 20 * 1024 * 1024) {
-       setError("The file is too large. Please upload a report smaller than 20MB.");
-       if (fileInputRef.current) fileInputRef.current.value = '';
-       return;
+      setError("The file is too large. Please upload a report smaller than 20MB.");
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+      setError('Unsupported file type. Please upload a PDF or an Image.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
     }
 
     setIsAnalyzing(true);
     setError(null);
     setAnalysisResult(null);
 
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
-      const response = await fetch('/api/analyze-report', {
-        method: 'POST',
-        body: formData,
+      // Convert file to base64
+      const base64Data = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
       });
 
-      // Handle non-JSON responses (like 413 Payload Too Large)
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-         throw new Error(`Server returned an unexpected error (${response.status}). The file might be too large.`);
+      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      if (!apiKey) throw new Error('Gemini API key not configured.');
+
+      const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+      const prompt = `You are a helpful, empathetic medical assistant. Analyze this medical report and respond strictly in this JSON format:
+{"summary":"A 1-2 sentence high-level summary.","keyFindings":["Finding 1","Finding 2"],"jargonBuster":[{"term":"Term","explanation":"Simple explanation"}],"nextSteps":"Recommended next steps."}
+Return ONLY valid JSON. No markdown.`;
+
+      let lastError = null;
+      for (const model of MODELS) {
+        try {
+          const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [
+                    { text: prompt },
+                    { inline_data: { mime_type: file.type, data: base64Data } },
+                  ],
+                }],
+              }),
+            }
+          );
+          const json = await res.json();
+          if (!res.ok) throw Object.assign(new Error(json.error?.message || 'API error'), { status: res.status });
+          let text = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+          if (text.startsWith('```json')) text = text.slice(7, -3).trim();
+          else if (text.startsWith('```')) text = text.slice(3, -3).trim();
+          setAnalysisResult(JSON.parse(text));
+          return;
+        } catch (err) {
+          lastError = err;
+          if (err.status === 429 || err.status === 503 || err.status === 500) continue;
+          throw err;
+        }
       }
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to analyze the report');
-      }
-
-      setAnalysisResult(data);
+      throw lastError;
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Failed to analyze the report. Please try again.');
     } finally {
       setIsAnalyzing(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -178,7 +210,7 @@ export default function Health() {
         <button aria-label="Menu" className="w-10 h-10 flex items-center justify-center rounded-full bg-surface-container-low hover:bg-surface-variant transition-colors">
           <span className="material-symbols-outlined text-primary">menu</span>
         </button>
-        <span className="text-[#01261f] font-bold italic tracking-tighter -ml-8">Health Records</span>
+        <span className="text-[#01261f] font-bold italic tracking-tighter -ml-8">{t('nav_health')}</span>
         <div className="flex items-center gap-2">
           {/* SOS Button */}
           <button
@@ -213,11 +245,11 @@ export default function Health() {
         
         {/* Greeting */}
         <div className="pl-2">
-          <h2 className="text-4xl font-bold tracking-[-0.02em] text-velvet mb-2">Health Insights</h2>
-          <p className="text-on-surface-variant text-lg leading-relaxed">Your living editorial of wellness data.</p>
+          <h2 className="text-4xl font-bold tracking-[-0.02em] text-velvet mb-2">{t("he_insights")}</h2>
+          <p className="text-on-surface-variant text-lg leading-relaxed">{t("he_insights_desc")}</p>
         </div>
 
-        {/* Medical Reports Hero */}
+        {/* {t("he_reports")} Hero */}
         <section className="relative">
           <div className="bg-surface-container-lowest rounded-xl p-8 ambient-shadow relative overflow-hidden group">
             <div className="absolute -right-12 -top-12 w-48 h-48 bg-secondary-container/20 rounded-full blur-3xl group-hover:bg-secondary-container/30 transition-all duration-700"></div>
@@ -227,7 +259,7 @@ export default function Health() {
                   <span className="material-symbols-outlined text-secondary-container" style={{ fontVariationSettings: "'FILL' 1" }}>folder_special</span>
                   Medical Reports
                 </h3>
-                <p className="text-on-surface-variant text-sm max-w-md">Access and manage your clinical documents, lab results, and imaging scans.</p>
+                <p className="text-on-surface-variant text-sm max-w-md">{t("he_reports_desc")}</p>
               </div>
               <input 
                 type="file" 
@@ -246,13 +278,13 @@ export default function Health() {
                 ) : (
                   <span className="material-symbols-outlined">upload_file</span>
                 )}
-                {isAnalyzing ? 'Analyzing...' : 'Upload Report'}
+                {isAnalyzing ? t("he_uploading") : t("he_upload")}
               </button>
             </div>
 
             {/* Recent Reports Scroll */}
             <div className="mt-8">
-              <h4 className="text-xs font-bold uppercase tracking-[0.05em] text-on-surface-variant mb-4">Recent Documents</h4>
+              <h4 className="text-xs font-bold uppercase tracking-[0.05em] text-on-surface-variant mb-4">{t("he_recent")}</h4>
               <div className="flex overflow-x-auto pb-4 gap-4 snap-x hide-scrollbar -mx-8 px-8">
                 {/* Report Card 1 */}
                 <div className="min-w-[280px] bg-surface-container-low rounded-xl p-5 border border-outline-variant/15 snap-center hover:bg-surface-container transition-colors cursor-pointer">
@@ -299,7 +331,7 @@ export default function Health() {
               
               <h3 className="text-xl font-bold text-on-surface mb-6 flex items-center gap-2 relative z-10">
                 <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
-                AI Report Analysis
+                {t("he_ai_report")}
               </h3>
 
               {isAnalyzing && (
@@ -370,7 +402,7 @@ export default function Health() {
           </section>
         )}
 
-        {/* Live Sync Dashboard */}
+        {/* {t("he_sync")} Dashboard */}
         <section>
           <div className="mb-6 pl-2 flex items-center justify-between">
             <div>
@@ -378,15 +410,15 @@ export default function Health() {
                 <span className="material-symbols-outlined text-primary">watch</span>
                 Live Sync
               </h3>
-              <p className="text-on-surface-variant text-sm mt-1">Data from Apple Health</p>
+              <p className="text-on-surface-variant text-sm mt-1">{t("he_sync_desc")}</p>
             </div>
             <button className="text-primary font-bold text-sm hover:opacity-80 transition-opacity flex items-center gap-1">
-              Manage Devices <span className="material-symbols-outlined text-sm">chevron_right</span>
+              {t("he_manage")} <span className="material-symbols-outlined text-sm">chevron_right</span>
             </button>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Heart Rate */}
+            {/* {t("he_hr")} */}
             <div className="bg-surface-container-lowest rounded-xl p-6 ambient-shadow relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-error-container/20 rounded-bl-full -mr-16 -mt-16 blur-2xl"></div>
               <div className="flex justify-between items-start mb-6 relative z-10">
@@ -410,7 +442,7 @@ export default function Health() {
               </div>
             </div>
 
-            {/* Daily Steps */}
+            {/* {t("he_steps")} */}
             <div className="bg-surface-container-lowest rounded-xl p-6 ambient-shadow relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-primary-container/10 rounded-bl-full -mr-16 -mt-16 blur-2xl"></div>
               <div className="flex justify-between items-start mb-6 relative z-10">
@@ -426,7 +458,7 @@ export default function Health() {
               </div>
             </div>
 
-            {/* Sleep Quality */}
+            {/* {t("he_sleep")} */}
             <div className="bg-surface-container-lowest rounded-xl p-6 ambient-shadow relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-secondary-container/20 rounded-bl-full -mr-16 -mt-16 blur-2xl"></div>
               <div className="flex justify-between items-start mb-6 relative z-10">
@@ -446,7 +478,7 @@ export default function Health() {
             <div className="bg-surface-container-lowest rounded-xl p-6 ambient-shadow relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-inverse-primary/30 rounded-bl-full -mr-16 -mt-16 blur-2xl"></div>
               <div className="flex justify-between items-start mb-6 relative z-10">
-                <h4 className="text-xs font-bold uppercase tracking-[0.05em] text-on-surface-variant">Oxygen (SpO2)</h4>
+                <h4 className="text-xs font-bold uppercase tracking-[0.05em] text-on-surface-variant">{t("he_o2")}</h4>
                 <span className="material-symbols-outlined text-primary-container" style={{ fontVariationSettings: "'FILL' 1" }}>air</span>
               </div>
               <div className="flex items-end gap-2 relative z-10">
@@ -454,7 +486,7 @@ export default function Health() {
                 <span className="text-sm text-on-surface-variant font-medium mb-1">%</span>
               </div>
               <p className="text-xs text-on-surface-variant mt-4 font-medium px-3 py-1 bg-surface-container-low rounded-md inline-block">
-                Optimal Range
+                {t("he_optimal")}
               </p>
             </div>
           </div>
@@ -478,7 +510,7 @@ export default function Health() {
         {/* Inactive Tab: Tracker */}
         <Link className="flex flex-col items-center justify-center text-[#1a1c17]/40 group hover:text-primary transition-colors" href="/tracker">
           <span className="material-symbols-outlined text-2xl mb-1">event_note</span>
-          <span>Tracker</span>
+          <span>{t('nav_tracker')}</span>
         </Link>
 
         {/* Active Tab: Health */}

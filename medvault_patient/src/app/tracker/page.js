@@ -86,8 +86,8 @@ export default function Tracker() {
                   <span className="material-symbols-outlined text-outline-variant" style={{ fontVariationSettings: "'FILL' 1" }}>medication</span>
                 </div>
                 <div>
-                  <h4 className={`font-display font-bold text-[1.125rem] transition-all ${med1Taken ? 'text-outline line-through decoration-outline/50' : 'text-on-surface'}`}>Lisinopril</h4>
-                  <p className="text-sm text-on-surface-variant font-medium mt-0.5">10mg • After breakfast</p>
+                  <h4 className={`font-display font-bold text-[1.125rem] transition-all ${med1Taken ? 'text-outline line-through decoration-outline/50' : 'text-on-surface'}`}>{t('h_med1_name')}</h4>
+                  <p className="text-sm text-on-surface-variant font-medium mt-0.5">{t('h_med1_desc')}</p>
                 </div>
               </div>
               <button 
@@ -105,8 +105,8 @@ export default function Tracker() {
                   <span className="material-symbols-outlined text-[#695f00]" style={{ fontVariationSettings: "'FILL' 1" }}>medication_liquid</span>
                 </div>
                 <div>
-                  <h4 className={`font-display font-bold text-[1.125rem] transition-all ${med2Taken ? 'text-outline line-through decoration-outline/50' : 'text-on-surface'}`}>Vitamin D3</h4>
-                  <p className="text-sm text-on-surface-variant font-medium mt-0.5">5000 IU • With dinner</p>
+                  <h4 className={`font-display font-bold text-[1.125rem] transition-all ${med2Taken ? 'text-outline line-through decoration-outline/50' : 'text-on-surface'}`}>{t('h_med2_name')}</h4>
+                  <p className="text-sm text-on-surface-variant font-medium mt-0.5">{t('h_med2_desc')}</p>
                 </div>
               </div>
               <button 
@@ -134,10 +134,10 @@ export default function Tracker() {
               </div>
               <div className="flex-1">
                 <div className="flex justify-between items-baseline">
-                  <h4 className="font-bold text-on-surface">Magnesium</h4>
-                  <span className="text-xs font-semibold text-on-surface-variant tracking-wider uppercase">8:00 PM</span>
+                  <h4 className="font-bold text-on-surface">{t("tr_med3_name")}</h4>
+                  <span className="text-xs font-semibold text-on-surface-variant tracking-wider uppercase">{t("tr_med3_time")}</span>
                 </div>
-                <p className="text-sm text-on-surface-variant">250mg • Before sleep</p>
+                <p className="text-sm text-on-surface-variant">{t("tr_med3_desc")}</p>
               </div>
             </div>
           </div>
@@ -161,7 +161,7 @@ export default function Tracker() {
         {/* Active Tab: Tracker */}
         <Link className="flex flex-col items-center justify-center text-[#01261f] relative after:content-[''] after:absolute after:-bottom-1 after:w-1 after:h-1 after:bg-[#f6e232] after:rounded-full group" href="/tracker">
           <span className="material-symbols-outlined text-2xl mb-1" style={{ fontVariationSettings: '"FILL" 1' }}>event_note</span>
-          <span>Tracker</span>
+          <span>{t('nav_tracker')}</span>
         </Link>
 
         {/* Inactive Tab: Health */}

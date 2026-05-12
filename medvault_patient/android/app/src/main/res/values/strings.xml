@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MedVault</string>
+    <string name="title_activity_main">MedVault</string>
+    <string name="package_name">com.medvault.patient</string>
+    <string name="custom_url_scheme">com.medvault.patient</string>
+</resources>
