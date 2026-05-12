@@ -359,7 +359,7 @@ export default function Profile() {
         {/* Inactive Tab: Visits */}
         <Link className="flex flex-col items-center justify-center text-[#1a1c17]/40 group hover:text-primary transition-colors" href="/tracker">
           <span className="material-symbols-outlined text-2xl mb-1">event_note</span>
-          <span>Tracker</span>
+          <span>{t('nav_tracker')}</span>
         </Link>
 
         {/* Active Tab: Profile */}
