@@ -95,54 +95,30 @@ export default function Health() {
     setAnalysisResult(null);
 
     try {
-      // Convert file to base64
-      const base64Data = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result.split(',')[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+      // Simulate network request delay (2 seconds)
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-      if (!apiKey) throw new Error('Gemini API key not configured.');
+      const mockResponse = {
+        summary: "The Complete Blood Count (CBC) report shows normal parameters overall, with a slight elevation in eosinophils, suggesting a possible mild allergic reaction.",
+        keyFindings: [
+          "Hemoglobin levels are within the healthy range (14.2 g/dL).",
+          "White Blood Cell (WBC) count is normal.",
+          "Eosinophils are slightly elevated at 6% (Normal: 1-4%)."
+        ],
+        jargonBuster: [
+          {
+            term: "Hemoglobin",
+            explanation: "A protein in your red blood cells that carries oxygen to your body's organs and tissues."
+          },
+          {
+            term: "Eosinophils",
+            explanation: "A type of disease-fighting white blood cell. High levels often indicate an allergic reaction or a minor infection."
+          }
+        ],
+        nextSteps: "No immediate concern. Continue monitoring your health. If you experience allergy symptoms like sneezing or skin rashes, consult your general physician."
+      };
 
-      const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
-      const prompt = `You are a helpful, empathetic medical assistant. Analyze this medical report and respond strictly in this JSON format:
-{"summary":"A 1-2 sentence high-level summary.","keyFindings":["Finding 1","Finding 2"],"jargonBuster":[{"term":"Term","explanation":"Simple explanation"}],"nextSteps":"Recommended next steps."}
-Return ONLY valid JSON. No markdown.`;
-
-      let lastError = null;
-      for (const model of MODELS) {
-        try {
-          const res = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{
-                  parts: [
-                    { text: prompt },
-                    { inline_data: { mime_type: file.type, data: base64Data } },
-                  ],
-                }],
-              }),
-            }
-          );
-          const json = await res.json();
-          if (!res.ok) throw Object.assign(new Error(json.error?.message || 'API error'), { status: res.status });
-          let text = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-          if (text.startsWith('```json')) text = text.slice(7, -3).trim();
-          else if (text.startsWith('```')) text = text.slice(3, -3).trim();
-          setAnalysisResult(JSON.parse(text));
-          return;
-        } catch (err) {
-          lastError = err;
-          if (err.status === 429 || err.status === 503 || err.status === 500) continue;
-          throw err;
-        }
-      }
-      throw lastError;
+      setAnalysisResult(mockResponse);
     } catch (err) {
       setError(err.message || 'Failed to analyze the report. Please try again.');
     } finally {
