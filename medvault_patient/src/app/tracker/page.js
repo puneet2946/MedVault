@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -12,6 +12,87 @@ export default function Tracker() {
   // Medication Tracker State
   const [med1Taken, setMed1Taken] = useState(true);
   const [med2Taken, setMed2Taken] = useState(false);
+
+  // Scanning State
+  const cameraInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
+  const [showScanOptions, setShowScanOptions] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  // Camera State
+  const videoRef = useRef(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [stream, setStream] = useState(null);
+
+  const handleScanClick = () => {
+    setShowScanOptions(true);
+  };
+
+  const openCamera = async () => {
+    setShowScanOptions(false);
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      setStream(mediaStream);
+      setIsCameraActive(true);
+    } catch (err) {
+      console.error("Error accessing camera:", err);
+      // Fallback to input if camera fails
+      cameraInputRef.current?.click();
+    }
+  };
+
+  const closeCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
+    setStream(null);
+    setIsCameraActive(false);
+  };
+
+  const capturePhoto = () => {
+    closeCamera();
+    setIsAnalyzing(true);
+    setTimeout(() => {
+      setIsAnalyzing(false);
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 2500);
+    }, 3000);
+  };
+
+  // Ensure video stream connects
+  useEffect(() => {
+    if (isCameraActive && videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [isCameraActive, stream]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [stream]);
+
+  const openGallery = () => {
+    setShowScanOptions(false);
+    galleryInputRef.current?.click();
+  };
+
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setIsAnalyzing(true);
+      // Simulate AI processing time
+      setTimeout(() => {
+        setIsAnalyzing(false);
+        setShowSuccess(true);
+        // Auto-hide success message
+        setTimeout(() => setShowSuccess(false), 2500);
+      }, 3000);
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -55,7 +136,25 @@ export default function Tracker() {
 
         {/* Section 1: Scan Prescription (Bento/Card Style) */}
         <section>
-          <button className="w-full relative overflow-hidden bg-gradient-to-br from-primary to-primary-container text-on-primary rounded-[1.5rem] p-6 flex flex-col items-start justify-between min-h-[140px] shadow-[0_20px_40px_-15px_rgba(26,28,23,0.15)] group active:scale-[0.98] transition-transform duration-300">
+          <input 
+            type="file" 
+            accept="image/*" 
+            capture="environment" 
+            ref={cameraInputRef}
+            onChange={handleFileChange}
+            className="hidden" 
+          />
+          <input 
+            type="file" 
+            accept="image/*" 
+            ref={galleryInputRef}
+            onChange={handleFileChange}
+            className="hidden" 
+          />
+          <button 
+            onClick={handleScanClick}
+            className="w-full relative overflow-hidden bg-gradient-to-br from-primary to-primary-container text-on-primary rounded-[1.5rem] p-6 flex flex-col items-start justify-between min-h-[140px] shadow-[0_20px_40px_-15px_rgba(26,28,23,0.15)] group active:scale-[0.98] transition-transform duration-300"
+          >
             {/* Decorative element inside card */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary-fixed/10 rounded-bl-[100%] pointer-events-none"></div>
             <div className="w-12 h-12 rounded-full bg-surface/10 backdrop-blur-sm flex items-center justify-center mb-4 border border-on-primary/10">
@@ -167,6 +266,111 @@ export default function Tracker() {
           <span>{t('nav_health')}</span>
         </Link>
       </nav>
+
+      {/* Scan Options Modal */}
+      {showScanOptions && (
+        <div className="fixed inset-0 z-[100] flex flex-col justify-end bg-[#01261f]/80 backdrop-blur-sm transition-opacity" onClick={() => setShowScanOptions(false)}>
+          <div className="bg-[#fafaf1] rounded-t-3xl p-6 w-full animate-in slide-in-from-bottom-full duration-300" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-[#01261f] tracking-tight">Add Prescription</h3>
+              <button onClick={() => setShowScanOptions(false)} className="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center hover:bg-surface-variant transition-colors">
+                <span className="material-symbols-outlined text-on-surface-variant text-sm">close</span>
+              </button>
+            </div>
+            <div className="flex flex-col gap-4 pb-6">
+              <button onClick={openCamera} className="w-full bg-surface-container-lowest hover:bg-surface-container-low border border-outline-variant/30 text-[#01261f] font-bold py-4 px-6 rounded-2xl flex items-center gap-4 transition-all active:scale-[0.98] shadow-sm">
+                <div className="w-10 h-10 rounded-full bg-primary-fixed/30 flex items-center justify-center text-primary shrink-0">
+                  <span className="material-symbols-outlined">photo_camera</span>
+                </div>
+                <div className="text-left flex-1">
+                  <p className="text-base font-bold">Open Camera</p>
+                  <p className="text-xs text-on-surface-variant mt-0.5">Take a clear photo of the prescription</p>
+                </div>
+              </button>
+              <button onClick={openGallery} className="w-full bg-surface-container-lowest hover:bg-surface-container-low border border-outline-variant/30 text-[#01261f] font-bold py-4 px-6 rounded-2xl flex items-center gap-4 transition-all active:scale-[0.98] shadow-sm">
+                <div className="w-10 h-10 rounded-full bg-secondary-container/50 flex items-center justify-center text-secondary shrink-0">
+                  <span className="material-symbols-outlined">photo_library</span>
+                </div>
+                <div className="text-left flex-1">
+                  <p className="text-base font-bold">Upload from Gallery</p>
+                  <p className="text-xs text-on-surface-variant mt-0.5">Choose an existing image or document</p>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Scanning / Analyzing Overlay */}
+      {isAnalyzing && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#01261f]/80 backdrop-blur-md transition-opacity">
+          <div className="bg-[#fafaf1] rounded-[2rem] p-8 flex flex-col items-center shadow-2xl w-[280px] animate-in zoom-in-95 duration-300">
+            <div className="relative w-20 h-20 mb-6 flex items-center justify-center">
+              <div className="absolute inset-0 border-4 border-primary/20 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <span className="material-symbols-outlined text-primary text-3xl animate-pulse">document_scanner</span>
+            </div>
+            <h3 className="text-xl font-bold text-[#01261f] tracking-tight">Analyzing...</h3>
+            <p className="text-sm text-on-surface-variant text-center mt-2 font-medium">Extracting medications from your prescription using AI.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Success Overlay */}
+      {showSuccess && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#01261f]/80 backdrop-blur-md transition-opacity">
+          <div className="bg-[#fafaf1] rounded-[2rem] p-8 flex flex-col items-center shadow-2xl w-[280px] animate-in zoom-in-95 duration-300">
+            <div className="w-20 h-20 bg-[#c9e165] rounded-full flex items-center justify-center mb-6 shadow-lg shadow-[#c9e165]/30">
+              <span className="material-symbols-outlined text-[#01261f] text-4xl font-bold">check</span>
+            </div>
+            <h3 className="text-xl font-bold text-[#01261f] tracking-tight">Success!</h3>
+            <p className="text-sm text-on-surface-variant text-center mt-2 font-medium">Prescription added to your tracker schedule.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Live Camera View */}
+      {isCameraActive && (
+        <div className="fixed inset-0 z-[120] bg-black flex flex-col items-center justify-center animate-in fade-in duration-300">
+          <div className="absolute top-8 left-6 right-6 flex justify-between items-center z-10">
+            <button onClick={closeCamera} className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white border border-white/20 active:scale-95 transition-transform">
+              <span className="material-symbols-outlined">close</span>
+            </button>
+            <div className="px-4 py-1.5 rounded-full bg-black/50 backdrop-blur-md text-white text-xs font-bold uppercase tracking-widest border border-white/20">
+              Scan Prescription
+            </div>
+            <div className="w-10 h-10"></div>
+          </div>
+          
+          <video 
+            ref={videoRef}
+            autoPlay 
+            playsInline 
+            muted
+            className="w-full h-full object-cover"
+          />
+
+          {/* Scanner Guide Overlay */}
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+            <div className="w-[85%] h-[65%] border-2 border-primary/80 rounded-2xl relative shadow-[0_0_0_4000px_rgba(0,0,0,0.6)]">
+              {/* Corner markers */}
+              <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-primary rounded-tl-xl"></div>
+              <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-primary rounded-tr-xl"></div>
+              <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-primary rounded-bl-xl"></div>
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-primary rounded-br-xl"></div>
+            </div>
+          </div>
+
+          <div className="absolute bottom-12 left-0 right-0 flex justify-center z-10">
+            <button 
+              onClick={capturePhoto} 
+              className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border-4 border-white active:scale-90 transition-transform"
+            >
+              <div className="w-14 h-14 rounded-full bg-white"></div>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
