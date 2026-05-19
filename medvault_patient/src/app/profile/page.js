@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 
-// Patient data that gets encoded in QR
 const PATIENT_DATA = {
   name: 'Julian Reed',
   patientId: 'MV-2024-0042',
@@ -14,23 +13,44 @@ const PATIENT_DATA = {
   conditions: ['Hypertension', 'Type 2 Diabetes'],
   emergencyContact: '+91 98765 43210',
   insuranceId: 'HLTH-INS-7734',
+  relation: 'Self'
 };
 
-export default function Profile() {
-  const { t, language, setLanguage } = useLanguage();
-  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
-  const [qrModalOpen, setQrModalOpen] = useState(false);
+const FAMILY_MEMBERS = [
+  {
+    name: 'Clara Reed',
+    patientId: 'MV-2024-0043',
+    relation: 'Wife',
+    dob: '1992-07-22',
+    bloodGroup: 'A-',
+    allergies: ['None'],
+    conditions: ['None'],
+    emergencyContact: '+91 98765 43210',
+    insuranceId: 'HLTH-INS-7734',
+  },
+  {
+    name: 'Leo Reed',
+    patientId: 'MV-2024-0044',
+    relation: 'Son',
+    dob: '2018-11-05',
+    bloodGroup: 'O+',
+    allergies: ['Peanuts'],
+    conditions: ['Asthma'],
+    emergencyContact: '+91 98765 43210',
+    insuranceId: 'HLTH-INS-7734',
+  }
+];
 
+function MedicalIdCard({ data }) {
+  const [qrModalOpen, setQrModalOpen] = useState(false);
   const qrCanvasRef = useRef(null);
   const qrModalCanvasRef = useRef(null);
 
-  // Draw QR on a canvas ref
   const drawQR = useCallback(async (canvasEl, size) => {
     if (!canvasEl) return;
     try {
       const QRCode = (await import('qrcode')).default;
-      await QRCode.toCanvas(canvasEl, JSON.stringify(PATIENT_DATA), {
+      await QRCode.toCanvas(canvasEl, JSON.stringify(data), {
         width: size,
         margin: 2,
         color: { dark: '#01261f', light: '#fafaf1' },
@@ -39,29 +59,151 @@ export default function Profile() {
     } catch (e) {
       console.error('QR generation failed', e);
     }
-  }, []);
+  }, [data]);
 
-  // Inline QR
   useEffect(() => { drawQR(qrCanvasRef.current, 160); }, [drawQR]);
 
-  // Modal QR — draw when modal opens
   useEffect(() => {
     if (qrModalOpen) {
-      // Wait a tick for the canvas to mount
       setTimeout(() => drawQR(qrModalCanvasRef.current, 280), 50);
     }
   }, [qrModalOpen, drawQR]);
 
+  return (
+    <>
+      <div
+        className="w-full rounded-2xl overflow-hidden relative shrink-0"
+        style={{
+          background: 'linear-gradient(135deg, #01261f 0%, #014d3a 60%, #026b50 100%)',
+          boxShadow: '0 8px 40px rgba(1,38,31,0.25)',
+        }}
+      >
+        <div className="absolute -top-8 -right-8 w-36 h-36 rounded-full" style={{ background: 'rgba(255,255,255,0.05)' }} />
+        <div className="absolute -bottom-10 -left-10 w-44 h-44 rounded-full" style={{ background: 'rgba(255,255,255,0.04)' }} />
+
+        <div className="relative z-10 flex items-center gap-5 p-5">
+          <div
+            className="rounded-xl overflow-hidden shrink-0"
+            style={{ background: '#fafaf1', padding: 6, boxShadow: '0 4px 20px rgba(0,0,0,0.25)' }}
+          >
+            <canvas ref={qrCanvasRef} style={{ display: 'block' }} />
+          </div>
+
+          <div className="flex flex-col gap-3 flex-1 min-w-0">
+            <div>
+              <div className="flex justify-between items-start">
+                <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-white/50 mb-0.5">Medical ID</p>
+                {data.relation !== 'Self' && (
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-[#01261f] bg-[#c9e165] px-1.5 py-0.5 rounded-sm">{data.relation}</span>
+                )}
+              </div>
+              <p className="text-white font-extrabold text-lg leading-tight truncate mt-0.5">{data.name}</p>
+              <p className="text-white/60 font-mono text-xs mt-0.5">{data.patientId}</p>
+            </div>
+
+            <div className="flex gap-2 flex-wrap">
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: 'rgba(183,28,28,0.8)', color: '#fff' }}>
+                🩸 {data.bloodGroup}
+              </span>
+              {data.allergies.map(a => (
+                <span key={a} className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: 'rgba(255,255,255,0.12)', color: '#fff' }}>
+                  ⚠︎ {a}
+                </span>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setQrModalOpen(true)}
+              className="self-start flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full transition-all active:scale-95"
+              style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' }}
+            >
+              <span className="material-symbols-outlined text-[14px]">open_in_full</span>
+              View Full QR
+            </button>
+          </div>
+        </div>
+
+        <div className="relative z-10 flex items-center justify-center gap-2 py-2.5 border-t" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+          <span className="material-symbols-outlined text-white/40 text-[14px]">qr_code_scanner</span>
+          <p className="text-white/40 text-[10px] font-semibold uppercase tracking-widest">Scan for emergency health info</p>
+        </div>
+      </div>
+
+      {qrModalOpen && (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center"
+          style={{ background: 'rgba(1,38,31,0.75)', backdropFilter: 'blur(10px)' }}
+          onClick={() => setQrModalOpen(false)}
+        >
+          <div
+            className="relative rounded-3xl p-8 flex flex-col items-center gap-5 shadow-2xl"
+            style={{ background: '#fafaf1', minWidth: 320 }}
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setQrModalOpen(false)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-surface-container flex items-center justify-center hover:bg-surface-variant transition-colors"
+              aria-label="Close"
+            >
+              <span className="material-symbols-outlined text-on-surface-variant text-lg">close</span>
+            </button>
+
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>qr_code_2</span>
+              <h3 className="text-lg font-extrabold tracking-tight text-on-surface">Medical ID</h3>
+            </div>
+
+            <div className="rounded-2xl overflow-hidden p-3" style={{ background: '#fafaf1', boxShadow: '0 4px 24px rgba(1,38,31,0.12)' }}>
+              <canvas ref={qrModalCanvasRef} />
+            </div>
+
+            <div className="w-full rounded-xl p-4 space-y-1" style={{ background: 'rgba(1,38,31,0.05)' }}>
+              <div className="flex justify-between text-sm">
+                <span className="text-on-surface-variant font-medium">Name</span>
+                <span className="font-bold text-on-surface">{data.name}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-on-surface-variant font-medium">Patient ID</span>
+                <span className="font-bold text-on-surface font-mono">{data.patientId}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-on-surface-variant font-medium">Blood Group</span>
+                <span className="font-extrabold" style={{ color: '#b71c1c' }}>{data.bloodGroup}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-on-surface-variant font-medium">Allergies</span>
+                <span className="font-bold text-on-surface">{data.allergies.join(', ')}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-on-surface-variant font-medium">Emergency</span>
+                <span className="font-bold text-on-surface">{data.emergencyContact}</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-on-surface-variant text-center px-4 mt-2">Show this to a healthcare provider for instant access to critical medical information.</p>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+export default function Profile() {
+  const { t, language, setLanguage } = useLanguage();
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  const [familyModalOpen, setFamilyModalOpen] = useState(false);
+
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-      
+
       if (currentScrollY > lastScrollY && currentScrollY > 50) {
         setIsHeaderVisible(false);
       } else if (currentScrollY < lastScrollY) {
         setIsHeaderVisible(true);
       }
-      
+
       setLastScrollY(currentScrollY);
     };
 
@@ -81,9 +223,9 @@ export default function Profile() {
 
       {/* Main Content Canvas */}
       <main className="flex-1 w-full max-w-2xl mx-auto pt-24 pb-32 px-6 relative z-10" style={{
-          backgroundImage: "url('data:image/svg+xml;utf8,<svg width=\"100%\" height=\"100%\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M-10,50 Q100,120 200,30 T300,100\" stroke=\"%23c5eadf\" stroke-width=\"2\" fill=\"none\" opacity=\"0.4\" stroke-dasharray=\"10 5\" stroke-linecap=\"round\"/><path d=\"M-50,80 Q150,10 250,90 T350,50\" stroke=\"%23c5eadf\" stroke-width=\"1.5\" fill=\"none\" opacity=\"0.3\" stroke-linecap=\"round\"/></svg>')",
-          backgroundSize: 'cover',
-          backgroundPosition: 'top center'
+        backgroundImage: "url('data:image/svg+xml;utf8,<svg width=\"100%\" height=\"100%\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M-10,50 Q100,120 200,30 T300,100\" stroke=\"%23c5eadf\" stroke-width=\"2\" fill=\"none\" opacity=\"0.4\" stroke-dasharray=\"10 5\" stroke-linecap=\"round\"/><path d=\"M-50,80 Q150,10 250,90 T350,50\" stroke=\"%23c5eadf\" stroke-width=\"1.5\" fill=\"none\" opacity=\"0.3\" stroke-linecap=\"round\"/></svg>')",
+        backgroundSize: 'cover',
+        backgroundPosition: 'top center'
       }}>
         {/* Profile Header */}
         <section className="flex flex-col items-center mt-8 mb-12 relative">
@@ -100,127 +242,40 @@ export default function Profile() {
           </div>
         </section>
 
-        {/* QR Modal */}
-        {qrModalOpen && (
-          <div
-            className="fixed inset-0 z-[100] flex items-center justify-center"
-            style={{ background: 'rgba(1,38,31,0.75)', backdropFilter: 'blur(10px)' }}
-            onClick={() => setQrModalOpen(false)}
+        {/* Medical ID QR Card (Self) */}
+        <section className="mb-8 flex flex-col items-center">
+          <MedicalIdCard data={PATIENT_DATA} />
+          
+          <button 
+            onClick={() => setFamilyModalOpen(true)}
+            className="mt-6 flex items-center justify-center gap-2 bg-surface-container-lowest hover:bg-surface-container-low text-[#01261f] font-bold py-3.5 px-6 rounded-xl transition-all active:scale-[0.98] shadow-sm w-full border border-outline-variant/30"
           >
-            <div
-              className="relative rounded-3xl p-8 flex flex-col items-center gap-5 shadow-2xl"
-              style={{ background: '#fafaf1', minWidth: 320 }}
-              onClick={e => e.stopPropagation()}
-            >
-              {/* Close */}
-              <button
-                onClick={() => setQrModalOpen(false)}
-                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-surface-container flex items-center justify-center hover:bg-surface-variant transition-colors"
-                aria-label="Close"
-              >
-                <span className="material-symbols-outlined text-on-surface-variant text-lg">close</span>
-              </button>
+            <span className="material-symbols-outlined">group</span>
+            View Family Medical IDs
+          </button>
+        </section>
 
-              {/* Header */}
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>qr_code_2</span>
-                <h3 className="text-lg font-extrabold tracking-tight text-on-surface">Medical ID</h3>
+        {/* Family Modal */}
+        {familyModalOpen && (
+          <div className="fixed inset-0 z-[110] flex flex-col justify-end bg-[#01261f]/80 backdrop-blur-sm transition-opacity" onClick={() => setFamilyModalOpen(false)}>
+            <div className="bg-[#fafaf1] rounded-t-3xl p-6 w-full max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom-full duration-300" onClick={e => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary">family_history</span>
+                  <h3 className="text-xl font-bold text-[#01261f] tracking-tight">Family IDs</h3>
+                </div>
+                <button onClick={() => setFamilyModalOpen(false)} className="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center hover:bg-surface-variant transition-colors">
+                  <span className="material-symbols-outlined text-on-surface-variant text-sm">close</span>
+                </button>
               </div>
-
-              {/* Large QR */}
-              <div className="rounded-2xl overflow-hidden p-3" style={{ background: '#fafaf1', boxShadow: '0 4px 24px rgba(1,38,31,0.12)' }}>
-                <canvas ref={qrModalCanvasRef} />
+              <div className="flex flex-col gap-6 pb-8">
+                {FAMILY_MEMBERS.map(member => (
+                  <MedicalIdCard key={member.patientId} data={member} />
+                ))}
               </div>
-
-              {/* Patient Summary */}
-              <div className="w-full rounded-xl p-4 space-y-1" style={{ background: 'rgba(1,38,31,0.05)' }}>
-                <div className="flex justify-between text-sm">
-                  <span className="text-on-surface-variant font-medium">Name</span>
-                  <span className="font-bold text-on-surface">{PATIENT_DATA.name}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-on-surface-variant font-medium">Patient ID</span>
-                  <span className="font-bold text-on-surface font-mono">{PATIENT_DATA.patientId}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-on-surface-variant font-medium">Blood Group</span>
-                  <span className="font-extrabold" style={{ color: '#b71c1c' }}>{PATIENT_DATA.bloodGroup}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-on-surface-variant font-medium">Allergies</span>
-                  <span className="font-bold text-on-surface">{PATIENT_DATA.allergies.join(', ')}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-on-surface-variant font-medium">Emergency</span>
-                  <span className="font-bold text-on-surface">{PATIENT_DATA.emergencyContact}</span>
-                </div>
-              </div>
-
-              <p className="text-xs text-on-surface-variant text-center px-4">Show this to a healthcare provider for instant access to your critical medical information.</p>
             </div>
           </div>
         )}
-
-        {/* Medical ID QR Card */}
-        <section className="mb-8">
-          <div
-            className="rounded-2xl overflow-hidden relative"
-            style={{
-              background: 'linear-gradient(135deg, #01261f 0%, #014d3a 60%, #026b50 100%)',
-              boxShadow: '0 8px 40px rgba(1,38,31,0.25)',
-            }}
-          >
-            {/* Decorative circles */}
-            <div className="absolute -top-8 -right-8 w-36 h-36 rounded-full" style={{ background: 'rgba(255,255,255,0.05)' }} />
-            <div className="absolute -bottom-10 -left-10 w-44 h-44 rounded-full" style={{ background: 'rgba(255,255,255,0.04)' }} />
-
-            <div className="relative z-10 flex items-center gap-5 p-5">
-              {/* QR Canvas */}
-              <div
-                className="rounded-xl overflow-hidden shrink-0"
-                style={{ background: '#fafaf1', padding: 6, boxShadow: '0 4px 20px rgba(0,0,0,0.25)' }}
-              >
-                <canvas ref={qrCanvasRef} style={{ display: 'block' }} />
-              </div>
-
-              {/* Info */}
-              <div className="flex flex-col gap-3 flex-1 min-w-0">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-white/50 mb-0.5">Medical ID</p>
-                  <p className="text-white font-extrabold text-lg leading-tight truncate">{PATIENT_DATA.name}</p>
-                  <p className="text-white/60 font-mono text-xs mt-0.5">{PATIENT_DATA.patientId}</p>
-                </div>
-
-                <div className="flex gap-2 flex-wrap">
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: 'rgba(183,28,28,0.8)', color: '#fff' }}>
-                    🩸 {PATIENT_DATA.bloodGroup}
-                  </span>
-                  {PATIENT_DATA.allergies.map(a => (
-                    <span key={a} className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: 'rgba(255,255,255,0.12)', color: '#fff' }}>
-                      ⚠︎ {a}
-                    </span>
-                  ))}
-                </div>
-
-                <button
-                  id="qr-expand-btn"
-                  onClick={() => setQrModalOpen(true)}
-                  className="self-start flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full transition-all active:scale-95"
-                  style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' }}
-                >
-                  <span className="material-symbols-outlined text-[14px]">open_in_full</span>
-                  View Full QR
-                </button>
-              </div>
-            </div>
-
-            {/* Bottom label */}
-            <div className="relative z-10 flex items-center justify-center gap-2 py-2.5 border-t" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
-              <span className="material-symbols-outlined text-white/40 text-[14px]">qr_code_scanner</span>
-              <p className="text-white/40 text-[10px] font-semibold uppercase tracking-widest">Scan for emergency health info</p>
-            </div>
-          </div>
-        </section>
 
         {/* Menu Groups */}
         <div className="space-y-8">
@@ -270,7 +325,7 @@ export default function Profile() {
                   </div>
                   <span className="font-body text-base font-medium text-on-surface">{t('p_language')}</span>
                 </div>
-                <select 
+                <select
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
                   className="bg-transparent text-on-surface-variant border-none outline-none font-medium text-right pr-4 cursor-pointer focus:ring-0"
