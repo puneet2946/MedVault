@@ -42,10 +42,7 @@ export default function Tracker() {
 
       {/* TopAppBar */}
       <header className={`bg-[#fafaf1]/80 backdrop-blur-md text-[#01261f] font-['Plus_Jakarta_Sans'] font-bold tracking-tight text-xl fixed top-0 z-50 flex justify-between items-center px-6 py-4 w-full transition-transform duration-300 ${isHeaderVisible ? 'translate-y-0' : '-translate-y-full'}`}>
-        <button aria-label="Menu" className="w-10 h-10 flex items-center justify-center rounded-full bg-surface-container-low hover:bg-surface-variant transition-colors">
-          <span className="material-symbols-outlined text-primary">menu</span>
-        </button>
-        <span className="text-[#01261f] font-bold italic tracking-tighter -ml-8">{t('tr_title')}</span>
+        <span className="text-[#01261f] font-bold italic tracking-tighter">{t('tr_title')}</span>
         <Link href="/profile" className="w-10 h-10 rounded-full overflow-hidden bg-surface-container-high border-2 border-surface flex items-center justify-center hover:opacity-80 transition-opacity">
           <span className="material-symbols-outlined text-on-surface-variant text-sm">person</span>
         </Link>
@@ -147,7 +144,7 @@ export default function Tracker() {
       {/* BottomNavBar */}
       <nav className="bg-[#fafaf1]/80 backdrop-blur-xl text-[#01261f] font-['Plus_Jakarta_Sans'] text-[11px] font-bold uppercase tracking-widest fixed bottom-0 left-0 w-full rounded-t-[2.5rem] z-50 no-border shadow-[0_-4px_40px_rgba(26,28,23,0.05)] hover:text-[#01261f] transition-colors flex justify-around items-center px-8 pb-8 pt-4">
         {/* Inactive Tab: Home */}
-        <Link className="flex flex-col items-center justify-center text-[#1a1c17]/40 group hover:text-primary transition-colors" href="/">
+        <Link className="flex flex-col items-center justify-center text-[#1a1c17]/40 group hover:text-primary transition-colors" href="/home">
           <span className="material-symbols-outlined text-2xl mb-1">home_health</span>
           <span>{t('nav_home')}</span>
         </Link>
