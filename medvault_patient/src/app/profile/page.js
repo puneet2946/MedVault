@@ -1,8 +1,11 @@
 "use client";
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
+import AuthGuard from '../../components/AuthGuard';
 
 const PATIENT_DATA = {
   name: 'Julian Reed',
@@ -189,10 +192,38 @@ function MedicalIdCard({ data }) {
 }
 
 export default function Profile() {
+  const router = useRouter();
   const { t, language, setLanguage } = useLanguage();
+  const { signOut, profile, user } = useAuth();
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [familyModalOpen, setFamilyModalOpen] = useState(false);
+
+  const patientName =
+    profile?.full_name ||
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    'Patient';
+
+  const patientId =
+    'MV-' + (user?.id ? user.id.substring(0, 8).toUpperCase() : '2024-0042');
+
+  const patientCardData = {
+    ...PATIENT_DATA,
+    name: patientName,
+    patientId: patientId,
+    bloodGroup: profile?.blood_group || PATIENT_DATA.bloodGroup,
+    dob: profile?.date_of_birth || PATIENT_DATA.dob,
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      router.replace('/');
+    } catch (err) {
+      console.error('Sign out error:', err);
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -212,7 +243,8 @@ export default function Profile() {
   }, [lastScrollY]);
 
   return (
-    <div className="bg-surface text-on-surface min-h-screen flex flex-col relative overflow-x-hidden">
+    <AuthGuard>
+      <div className="bg-surface text-on-surface min-h-screen flex flex-col relative overflow-x-hidden">
       {/* TopAppBar */}
       <header className={`bg-[#fafaf1]/80 backdrop-blur-md text-[#01261f] font-['Plus_Jakarta_Sans'] font-bold tracking-tight text-xl fixed top-0 z-50 flex justify-between items-center px-6 py-4 w-full transition-transform duration-300 ${isHeaderVisible ? 'translate-y-0' : '-translate-y-full'}`}>
         <span className="text-[#01261f] font-bold italic tracking-tighter">{t('p_title')}</span>
@@ -230,11 +262,11 @@ export default function Profile() {
         {/* Profile Header */}
         <section className="flex flex-col items-center mt-8 mb-12 relative">
           <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-surface-container-lowest shadow-[0_20px_40px_-10px_rgba(26,28,23,0.1)] mb-6">
-            <img alt="Julian Reed" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBHZCPn7NSZ2wu_mpVYu5uo2tcRmwuvX1JjcwapY_A8k-PEoefNVVP2qS9-v3U2fhpyClVhtCy7iDgZs-5tlguih_1U5vfdVySYWESX61Jmhdj7eqgYhU5-CtRU_zV5GO-i5NkVBdVcfIRM7YLW8ya5cYrhVU-wLHQVOp_GOoRWZG34gwXYor-quySTVe00p_hgF3vENghkwcWuNGh9AMfgpdFMs7uRdIDzgqMn7Gm99tfJAlXrkaJy8wLOAE2tH_IhRCoT7mQgldw" />
+            <img alt={patientName} className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBHZCPn7NSZ2wu_mpVYu5uo2tcRmwuvX1JjcwapY_A8k-PEoefNVVP2qS9-v3U2fhpyClVhtCy7iDgZs-5tlguih_1U5vfdVySYWESX61Jmhdj7eqgYhU5-CtRU_zV5GO-i5NkVBdVcfIRM7YLW8ya5cYrhVU-wLHQVOp_GOoRWZG34gwXYor-quySTVe00p_hgF3vENghkwcWuNGh9AMfgpdFMs7uRdIDzgqMn7Gm99tfJAlXrkaJy8wLOAE2tH_IhRCoT7mQgldw" />
           </div>
-          <h2 className="text-[2.5rem] font-bold tracking-tight text-on-surface leading-none mb-2 text-center">Julian Reed</h2>
+          <h2 className="text-[2.5rem] font-bold tracking-tight text-on-surface leading-none mb-2 text-center">{patientName}</h2>
           <div className="flex items-center space-x-3 mb-4">
-            <span className="font-label text-[0.6875rem] uppercase tracking-[0.05em] font-semibold text-on-surface-variant bg-surface-container-low px-3 py-1 rounded-full">{t('p_patient_id')}</span>
+            <span className="font-label text-[0.6875rem] uppercase tracking-[0.05em] font-semibold text-on-surface-variant bg-surface-container-low px-3 py-1 rounded-full">{user?.email || patientId}</span>
           </div>
           <div className="flex items-center space-x-2 text-primary font-medium text-sm bg-primary-fixed/20 px-4 py-1.5 rounded-full">
             <span className="material-symbols-outlined text-base text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
@@ -244,7 +276,7 @@ export default function Profile() {
 
         {/* Medical ID QR Card (Self) */}
         <section className="mb-8 flex flex-col items-center">
-          <MedicalIdCard data={PATIENT_DATA} />
+          <MedicalIdCard data={patientCardData} />
           
           <button 
             onClick={() => setFamilyModalOpen(true)}
@@ -262,7 +294,7 @@ export default function Profile() {
               <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-primary">family_history</span>
-                  <h3 className="text-xl font-bold text-[#01261f] tracking-tight">Family IDs</h3>
+                  <h3 className="text-xl font-bold text-[#01261f] tracking-tight">Family IDs <span className="text-xs font-normal text-on-surface-variant">(Sample Demo)</span></h3>
                 </div>
                 <button onClick={() => setFamilyModalOpen(false)} className="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center hover:bg-surface-variant transition-colors">
                   <span className="material-symbols-outlined text-on-surface-variant text-sm">close</span>
@@ -386,7 +418,10 @@ export default function Profile() {
 
           {/* Logout Button */}
           <div className="pt-6 pb-8 flex justify-center">
-            <button className="text-error font-medium flex items-center space-x-2 border-b-2 border-error pb-1 hover:opacity-80 transition-opacity">
+            <button
+              onClick={handleSignOut}
+              className="text-error font-medium flex items-center space-x-2 border-b-2 border-error pb-1 hover:opacity-80 transition-opacity cursor-pointer"
+            >
               <span className="material-symbols-outlined text-sm">logout</span>
               <span>{t('p_signout')}</span>
             </button>
@@ -421,5 +456,6 @@ export default function Profile() {
         </Link>
       </nav>
     </div>
+    </AuthGuard>
   );
 }

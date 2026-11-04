@@ -1,2 +1,7 @@
 medvault_doctors/
 medvault_patient_mobile/
+
+# environment variables and secrets
+.env*
+*.pem
+.DS_Store

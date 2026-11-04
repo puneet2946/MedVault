@@ -29,7 +29,7 @@ const translations = {
     nav_tracker: "Tracker",
     nav_profile: "Profile",
     nav_health: "Health",
-    h_title: "Med-Vault",
+    h_title: "MedVault",
     h_greeting: "Hello",
     h_sub_greeting: "Your vitality looks excellent today. Here is your curated wellness overview.",
     h_upload_new: "Upload New",

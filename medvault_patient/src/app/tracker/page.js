@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useLanguage } from '../../context/LanguageContext';
+import AuthGuard from '../../components/AuthGuard';
 
 export default function Tracker() {
   const { t } = useLanguage();
@@ -112,7 +113,8 @@ export default function Tracker() {
   }, [lastScrollY]);
 
   return (
-    <div className="bg-surface text-on-surface font-body antialiased min-h-screen relative overflow-x-hidden selection:bg-primary-fixed selection:text-on-primary-fixed">
+    <AuthGuard>
+      <div className="bg-surface text-on-surface font-body antialiased min-h-screen relative overflow-x-hidden selection:bg-primary-fixed selection:text-on-primary-fixed">
       {/* Decorative Organic Background Lines */}
       <svg className="absolute z-0 pointer-events-none opacity-40 text-primary-fixed-dim top-0 right-0 w-[300px] h-[300px] -translate-y-12 translate-x-12" fill="none" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
         <path d="M 200 0 C 150 50, 50 20, 20 100 C -10 180, 80 180, 100 250" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2"></path>
@@ -170,7 +172,10 @@ export default function Tracker() {
         {/* Section 2: Today's Schedule */}
         <section className="bg-surface-container-low rounded-[1.5rem] p-6 relative">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="font-display text-[1.5rem] font-bold text-on-surface tracking-tight">{t('tr_schedule')}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="font-display text-[1.5rem] font-bold text-on-surface tracking-tight">{t('tr_schedule')}</h2>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded">Sample Demo</span>
+            </div>
             <span className="text-xs font-semibold uppercase tracking-widest text-on-surface-variant bg-surface-container-high px-3 py-1 rounded-full">{t('tr_left')}</span>
           </div>
           <div className="flex flex-col gap-4">
@@ -319,12 +324,12 @@ export default function Tracker() {
       {/* Success Overlay */}
       {showSuccess && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#01261f]/80 backdrop-blur-md transition-opacity">
-          <div className="bg-[#fafaf1] rounded-[2rem] p-8 flex flex-col items-center shadow-2xl w-[280px] animate-in zoom-in-95 duration-300">
-            <div className="w-20 h-20 bg-[#c9e165] rounded-full flex items-center justify-center mb-6 shadow-lg shadow-[#c9e165]/30">
-              <span className="material-symbols-outlined text-[#01261f] text-4xl font-bold">check</span>
+          <div className="bg-[#fafaf1] rounded-[2rem] p-8 flex flex-col items-center shadow-2xl w-[320px] animate-in zoom-in-95 duration-300 text-center">
+            <div className="w-16 h-16 bg-[#c9e165] rounded-full flex items-center justify-center mb-4 shadow-lg shadow-[#c9e165]/30">
+              <span className="material-symbols-outlined text-[#01261f] text-3xl font-bold">verified</span>
             </div>
-            <h3 className="text-xl font-bold text-[#01261f] tracking-tight">Success!</h3>
-            <p className="text-sm text-on-surface-variant text-center mt-2 font-medium">Prescription added to your tracker schedule.</p>
+            <h3 className="text-xl font-bold text-[#01261f] tracking-tight">Prescription Scanned</h3>
+            <p className="text-sm text-on-surface-variant mt-2 font-medium">Document processed for schedule tracker. (AI Schedule Extraction Demo Preview active)</p>
           </div>
         </div>
       )}
@@ -372,5 +377,6 @@ export default function Tracker() {
         </div>
       )}
     </div>
+    </AuthGuard>
   );
 }

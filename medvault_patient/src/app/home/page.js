@@ -3,9 +3,14 @@
 import Link from 'next/link';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
+import { createClient } from '../../utils/supabase/client';
+import { uploadMedicalRecord } from '../../utils/uploadRecord';
+import AuthGuard from '../../components/AuthGuard';
 
 export default function Home() {
   const { t } = useLanguage();
+  const { user, profile } = useAuth();
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   
@@ -22,15 +27,43 @@ export default function Home() {
   const cameraRef = useRef(null);
   const fileRef = useRef(null);
 
-  const handleFileSelected = (e) => {
+  const handleFileSelected = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadMenuOpen(false);
-    setToastMessage("Encrypting and saving " + file.name + "...");
-    setTimeout(() => {
-      setToastMessage("Successfully saved to Vault!");
+
+    if (!user?.id) {
+      setToastMessage("Please sign in to upload records.");
       setTimeout(() => setToastMessage(""), 3500);
-    }, 2500);
+      return;
+    }
+
+    if (file.size > 20 * 1024 * 1024) {
+      setToastMessage("File too large. Maximum file size is 20MB.");
+      setTimeout(() => setToastMessage(""), 3500);
+      return;
+    }
+
+    setToastMessage(`Encrypting and uploading ${file.name}...`);
+    try {
+      const { data: record, error: uploadError } = await uploadMedicalRecord(file);
+
+      if (uploadError) {
+        setToastMessage(`Upload failed: ${uploadError.message || "Storage error"}`);
+        setTimeout(() => setToastMessage(""), 4000);
+        return;
+      }
+
+      setToastMessage("Successfully encrypted and saved to Vault!");
+      setTimeout(() => setToastMessage(""), 3500);
+    } catch (err) {
+      console.error("Unexpected upload error:", err);
+      setToastMessage(`Upload failed: ${err.message || "Unexpected error"}`);
+      setTimeout(() => setToastMessage(""), 4000);
+    } finally {
+      if (cameraRef.current) cameraRef.current.value = "";
+      if (fileRef.current) fileRef.current.value = "";
+    }
   };
 
   const audioCtxRef = useRef(null);
@@ -109,7 +142,7 @@ export default function Home() {
   }, [lastScrollY]);
 
   return (
-    <>
+    <AuthGuard>
             {/* Hidden Inputs for Upload */}
       <input type="file" accept="image/*" capture="environment" hidden ref={cameraRef} onChange={handleFileSelected} />
       <input type="file" accept="image/*,application/pdf" hidden ref={fileRef} onChange={handleFileSelected} />
@@ -245,7 +278,7 @@ export default function Home() {
         <section className="pt-8 pb-4 mb-12 relative">
           <div className="absolute -top-10 -left-10 w-32 h-32 bg-secondary-fixed/20 rounded-full blur-3xl -z-10"></div>
           <h1 className="leading-none tracking-[-0.02em] font-extrabold text-on-surface mb-2 text-[3.5rem]">
-            {t('h_greeting')} <br /> <span className="text-primary italic font-serif font-medium relative z-10">Julian.</span>
+            {t('h_greeting')} <br /> <span className="text-primary italic font-serif font-medium relative z-10">{profile?.full_name?.split(' ')[0] || user?.user_metadata?.full_name?.split(' ')[0] || user?.user_metadata?.name?.split(' ')[0] || 'Patient'}.</span>
           </h1>
           <p className="text-lg text-on-surface-variant max-w-md leading-relaxed mt-4">
             {t('h_sub_greeting')}
@@ -389,6 +422,6 @@ export default function Home() {
           <span>{t('nav_health')}</span>
         </Link>
       </nav>
-    </>
+    </AuthGuard>
   );
 }

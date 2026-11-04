@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# MedVault AI — Patient Application
 
-## Getting Started
+This directory contains the primary Next.js + Capacitor application for **MedVault AI**.
 
-First, run the development server:
+For complete architecture, setup instructions, database schema details, security audit notes, and deployment commands, please see the primary repository documentation:
+
+👉 **[MedVault Primary README](../README.md)**
+
+---
+
+### Quick Commands Reference
 
 ```bash
+# Install dependencies
+npm install
+
+# Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Run linting check
+npm run lint
+
+# Production web build
+npm run build
+
+# Mobile static export (Capacitor target)
+OUTPUT_EXPORT=true npm run build
+
+# Standalone Gemini connectivity test
+node --env-file=.env test-gemini.js
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Environment Configuration
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Configure your local environment files before running:
+- `medvault_patient/.env.local`:
+  ```env
+  NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-anon-key
+  ```
+- `medvault_patient/.env`:
+  ```env
+  GEMINI_API_KEY=your-gemini-api-key
+  ```

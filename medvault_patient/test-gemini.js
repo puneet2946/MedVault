@@ -1,20 +1,26 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenAI } = require('@google/genai');
 
 const apiKey = process.env.GEMINI_API_KEY;
 
 if (!apiKey) {
-  throw new Error('GEMINI_API_KEY environment variable is not configured.');
+  console.error('ERROR: GEMINI_API_KEY environment variable is not configured.');
+  process.exit(1);
 }
 
-const genAI = new GoogleGenerativeAI(apiKey);
+const ai = new GoogleGenAI({ apiKey });
 
 async function run() {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const result = await model.generateContent('hello');
-    console.log('SUCCESS:', result.response.text());
+    const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+    console.log(`Testing Gemini API with model: ${model}...`);
+    const response = await ai.models.generateContent({
+      model,
+      contents: 'Respond with the single word: PONG',
+    });
+    console.log('SUCCESS:', response.text.trim());
   } catch (error) {
     console.error('ERROR:', error.message);
+    process.exit(1);
   }
 }
 

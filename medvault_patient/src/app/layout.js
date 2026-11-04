@@ -1,8 +1,9 @@
 import "./globals.css";
 import { LanguageProvider } from "../context/LanguageContext";
+import { AuthProvider } from "../context/AuthContext";
 
 export const metadata = {
-  title: "Med-Vault - Home",
+  title: "MedVault - Home",
   description: "Your curated wellness overview.",
 };
 
@@ -22,9 +23,11 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body className="bg-surface text-on-surface min-h-screen pb-32">
-        <LanguageProvider>
-          {children}
-        </LanguageProvider>
+        <AuthProvider>
+          <LanguageProvider>
+            {children}
+          </LanguageProvider>
+        </AuthProvider>
       </body>
     </html>
   );

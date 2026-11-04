@@ -1,14 +1,10 @@
-import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
-
 /** @type {import('next').NextConfig} */
-const projectRoot = dirname(fileURLToPath(import.meta.url));
-
 const nextConfig = {
-  output: 'export',
-  turbopack: {
-    root: projectRoot,
-  },
+  // Support static export for Capacitor when explicitly requested via environment variable,
+  // while allowing secure server-side Node.js API routes during standard Next.js execution.
+  ...(process.env.OUTPUT_EXPORT === 'true' || process.env.CAPACITOR_BUILD === 'true'
+    ? { output: 'export' }
+    : {}),
   images: {
     unoptimized: true,
   },
