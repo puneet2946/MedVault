@@ -1,4 +1,4 @@
-# MedVault AI — Secure Medical Records Vault & Clinical Intelligence
+# MedVault AI - Secure Medical Records Vault & Clinical Intelligence
 
 > **Hackathon Project Submission**  
 > **Repository:** [https://github.com/puneet2946/MedVault](https://github.com/puneet2946/MedVault)  
@@ -355,4 +355,3 @@ OUTPUT_EXPORT=true npm run build
 ## License
 
 This project is submitted for hackathon evaluation and licensed under the [MIT License](LICENSE).
-
